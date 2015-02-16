@@ -1,9 +1,12 @@
-﻿Tic-Tac-Toe
-============
+﻿#Tic-Tac-Toe
 
-It's about time I learned how to use HTML5. And minimax.
+It's about time I learned how to use CSS. And minimax.
 
-Similar projects:
+## Install
+
+To play, open `src/index.html` in your favorite web browser.
+
+## Similar projects
 
 * [http://perfecttictactoe.herokuapp.com](http://perfecttictactoe.herokuapp.com)
 * [http://ostermiller.org/calc/tictactoe.html](http://ostermiller.org/calc/tictactoe.html)
