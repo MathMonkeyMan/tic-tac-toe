@@ -66,6 +66,7 @@ var Game = (function() {
 
     var reset = function() {
         clearBoard(board);
+        whoMoves = Core.ex;
     };
 
     me.get = get;
