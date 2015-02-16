@@ -9,7 +9,6 @@
 }
 
 body {
-    /*background-color: #996633;*/
     background-color: #503316;
 }
 
@@ -39,12 +38,10 @@ h1 > a {
 table.board {
     margin-left: auto;
     margin-right: auto;
-    /*background-color: #9fcfd5;*/
     background-color: rgba(159, 207, 213, 0.9);
     border-collapse: collapse;
 }
 table.board td {
-    /*border: 5px solid #996633;*/
     border: 5px solid #503316;
 }
 table.board tr:first-child td {

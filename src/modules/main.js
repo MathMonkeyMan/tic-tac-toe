@@ -30,7 +30,7 @@ var main = (function() {
         cells.forEach(function(column) {
             column.forEach(function(cell) {
                 setOpacity(cell, 0.0);
-                cell.innerHTML = blank;
+                cell.innerHTML = Core.blank;
             });
         });
     }
@@ -64,7 +64,7 @@ var main = (function() {
     function showPossibleValue(row, col) {
         var x = row - 1,
             y = col - 1;
-        if (getCellValue(x, y) === blank) {
+        if (getCellValue(x, y) === Core.blank) {
             fadeCell(x, y);
             setCellValue(x, y, Game.whoseMove());
         }
@@ -73,8 +73,8 @@ var main = (function() {
     function hidePossibleValue(row, col) {
         var x = row - 1,
             y = col - 1;
-        if (Game.get(x, y) === blank) {
-            setCellValue(x, y, blank);
+        if (Game.get(x, y) === Core.blank) {
+            setCellValue(x, y, Core.blank);
             hideCell(x, y);
         }
     }
@@ -85,7 +85,13 @@ var main = (function() {
         return function(event, row, col) {
             var x = row - 1,
                 y = col - 1;
-            if (Game.get(x, y) === blank) {
+            // TODO: If it's a human's turn, make the move.
+            //       Otherwise, do nothing.
+            //       Then, if the next player is not human,
+            //       make an AI move.
+            //       Always check if the game is over.
+
+            if (Game.get(x, y) === Core.blank) {
                 unfadeCell(x, y);
                 setCellValue(x, y, Game.whoseMove());
                 Game.move(x, y);
@@ -118,11 +124,11 @@ var main = (function() {
         };
         
         var get = function(who) {
-            if (who === ex) {
+            if (who === Core.ex) {
                 return clone(xPlayer);
             }
             else {
-                assert(who === oh);
+                assert(who === Core.oh);
                 return clone(oPlayer);
             }
         };

@@ -8,33 +8,31 @@ var Game = (function() {
         }
     };
 
-    var dim = 3;
-    
-    // Make board a dim x dim array of blanks.
+    // Make board a Core.dim by Core.dim array of blanks.
     var board = [];
     var clearBoard = function(b) {
         b.length = 0;
-        repeat(dim, function() {
+        repeat(Core.dim, function() {
             var column = []
-            repeat(dim, function() {
-                column.push(blank);
+            repeat(Core.dim, function() {
+                column.push(Core.blank);
             });
             board.push(column);
         });
     }
     clearBoard(board);
 
-    var whoMoves = ex;
+    var whoMoves = Core.ex;
     var whoseMove = function() {
         return whoMoves;
     };
     var nextMove = function() {
-        if (whoMoves === ex) {
-            whoMoves = oh;
+        if (whoMoves === Core.ex) {
+            whoMoves = Core.oh;
         }
         else {
-            assert(whoMoves === oh);
-            whoMoves = ex;
+            assert(whoMoves === Core.oh);
+            whoMoves = Core.ex;
         }
     };
 
