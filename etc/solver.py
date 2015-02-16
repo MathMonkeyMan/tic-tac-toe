@@ -1,4 +1,7 @@
 
+import pickle
+from pprint import pprint
+
 ex = 'X'
 oh = 'O'
 tie = 'tie'
@@ -17,8 +20,10 @@ def keyChar(ch):
         return '.'
 
 def boardKey(board):
-    return ''.join(keyChar(board[i, j]) for j in range(dim) \
-                                        for i in range(dim))
+    return ''.join(keyChar(board[i, j]) for j in range(dim) for i in range(dim))
+
+def fromKey(key):
+    return { (i % dim, i // dim): key[i] for i in range(dim*dim) }
 
 def moveTotals(board):
     exes, ohs = 0, 0
@@ -109,6 +114,80 @@ def possibleMoves(board):
     player = whoMoves(board)
     return [boardMove(board, place, player) for place in emptyPlaces(board)]
 
+def keyIndexToZeroBasedCoordinates(i):
+    return (i % dim, i // dim) # x, y
+
+def zeroBasedCoordinatesToKeyIndex(x, y):
+    return dim * y + x
+
+# 90 degree left turn
+def boardRotate(key):
+    # abcdefghi --> cfibehadg
+    result = ''
+    for i, c in enumerate(key):
+        x, y = keyIndexToZeroBasedCoordinates(i)
+        oldX = 2 - y # which is -(y-1) + 1
+        oldY = x # which is x-1 + 1
+        result += key[zeroBasedCoordinatesToKeyIndex(oldX, oldY)]
+    return result
+
+# Mirror about the center column
+def boardFlip(key):
+    return ''.join(key[(i // dim) * dim + (dim - i % dim) - 1] for i in range(len(key)))
+
+allSymmetries = [ lambda s: s, # identity 
+                  boardRotate, # 90 degrees
+                  lambda s: boardRotate(boardRotate(s)), # 180 degrees
+                  lambda s: boardRotate(boardRotate(boardRotate(s))), # 270 degrees
+                  boardFlip, # Flip about middle column
+                  lambda s: boardFlip(boardRotate(s)), # 90 degrees then flip
+                  lambda s: boardFlip(boardRotate(boardRotate(s))), # 180 degrees then flip
+                  lambda s: boardFlip(boardRotate(boardRotate(boardRotate(s)))) ] # 270 degrees then flip
+
+inverseSymmetries = [ allSymmetries[0], # identity (self inverse)
+                      allSymmetries[3], # 270 degrees 
+                      allSymmetries[2], # 180 degrees (self inverse)
+                      allSymmetries[1], # 90 degrees
+                      allSymmetries[4], # Flip about middle column (self inverse)
+                      allSymmetries[5], # 90 degrees then flip (self inverse)
+                      allSymmetries[6], # 180 degrees then flip (self inverse)
+                      allSymmetries[7] ]# 270 degrees then flip (self inverse)
+
+def inverse(symmetry):
+    return inverseSymmetries[allSymmetries.index(symmetry)]
+
+def BookSuggestor():
+    def loadBookSuggestionsByKey():
+        f = open('ai.txt', 'rb')
+        ai = pickle.load(f)
+        suggestionsByKey = ai['suggestionKeys']
+        f.close()
+        return suggestionsByKey
+    
+    def loadBookSuggestions():
+        f = open('ai.txt', 'rb')
+        ai = pickle.load(f)
+        suggestions = ai['suggestions']
+        f.close()
+        return suggestions
+
+    suggestionsByKey = loadBookSuggestionsByKey()
+    suggestions = loadBookSuggestions()
+    def suggestWithSymmetry(board, debug=True):
+        key = boardKey(board)
+        for sym, perm in ((sym, sym(key)) for sym in allSymmetries):
+            move = suggestionsByKey.get(perm)
+            if move is not None: # Found it
+                return fromKey(inverse(sym)(move))
+        raise Exception("Shouldn't be able to get here. key={0}".format(key))
+
+    def suggest(board, debug=True):
+        return suggestions[boardKey(board)]
+
+    return suggest
+
+bookSuggestMove = BookSuggestor()
+
 # I define ex as the maximizing player. Thus a win for ex
 # has value 1, a tie 0, and a win for oh has value -1.
 
@@ -167,7 +246,6 @@ class Suggestor:
             return cached
 
 suggestor = Suggestor()
-suggestMove = suggestor.suggest
 
 def minimaxSuggestMove(board, debug):    
     moves = possibleMoves(board)
@@ -207,14 +285,14 @@ def minimaxSuggestMove(board, debug):
 # Play all possible games against the AI, 
 # and raise an exception if the AI ever loses.
 # The "non-AI" opponent will move first.
-def tryToDefeatAiAiSecond(board):
+def tryToDefeatAiAiSecond(board, suggestMove):
     if board is None:
         return
     whoseTurn = whoMoves(board)
-    # print("It is now {0}'s turn to move.".format(whoseTurn))
+    print("It is now {0}'s turn to move.".format(whoseTurn))
     for move in possibleMoves(board):
-        # print("My ({0}'s) move:".format(whoseTurn))
-        # printBoard(move)
+        print("My ({0}'s) move:".format(whoseTurn))
+        printBoard(move)
         gameDone = finished(move)
         if gameDone == whoseTurn:
             raise Exception('AI lost: {0}'.format(boardKey(move)))
@@ -224,26 +302,26 @@ def tryToDefeatAiAiSecond(board):
    
         aiMove = suggestMove(move)
         if aiMove is None:
-            # print('No move to be made by AI.')
+            print('No move to be made by AI.')
             pass
         else:
-            # print("AI ({0}'s) move:".format(otherPlayer(whoseTurn)))
-            # printBoard(aiMove)
-            tryToDefeatAiAiSecond(aiMove)
+            print("AI ({0}'s) move:".format(otherPlayer(whoseTurn)))
+            printBoard(aiMove)
+            tryToDefeatAiAiSecond(aiMove, suggestMove)
 
 # Let the AI move first.
-def tryToDefeatAiAiFirst(board):
+def tryToDefeatAiAiFirst(board, suggestMove):
     aiMove = suggestMove(board)
-    # print("AI ({0}'s) move:".format(whoMoves(board)))
-    # printBoard(aiMove)
-    tryToDefeatAiAiSecond(aiMove)
+    print("AI ({0}'s) move:".format(whoMoves(board)))
+    printBoard(aiMove)
+    tryToDefeatAiAiSecond(aiMove, suggestMove)
 
-def assertAiNeverLoses(board):
-    tryToDefeatAiAiSecond(board)
-    tryToDefeatAiAiFirst(board)
+def assertAiNeverLoses(board, suggestMove):
+    tryToDefeatAiAiSecond(board, suggestMove)
+    tryToDefeatAiAiFirst(board, suggestMove)
     print('Congratulations! The AI can never lose.')
 
-def play(board):
+def play(board, suggestMove):
     while not finished(board):
         printBoard(board)
         whoseTurn = whoMoves(board)
@@ -262,49 +340,56 @@ def play(board):
     printBoard(board)
     print('Game over. Winner: {0}'.format(finished(board)))
 
-board = dict(((i, j), '_') for i in range(dim) for j in range(dim))
+def withoutDegeneracy(states):
+    uniqueStates = set(states)
+    transformations = allSymmetries[1:] # Ignore identity
+    for s in states:
+        for image in (tran(s) for tran in transformations):
+            uniqueStates.discard(image)
+    return uniqueStates
 
-def keyIndexToZeroBasedCoordinates(i):
-    return (i % dim, i // dim) # x, y
-
-def zeroBasedCoordinatesToKeyIndex(x, y):
-    return dim * y + x
-
-# 90 degree left turn
-def boardRotate(key):
-    # abcdefghi --> cfibehadg
-    result = ''
-    for i, c in enumerate(key):
-        x, y = keyIndexToZeroBasedCoordinates(i)
-        oldX = 2 - y # which is -(y-1) + 1
-        oldY = x # which is x-1 + 1
-        result += key[zeroBasedCoordinatesToKeyIndex(oldX, oldY)]
-    return result
-
-# Mirror about the center column
-def boardFlip(key):
-    return ''.join(key[(i // dim) * dim + (dim - i % dim) - 1] for i in range(len(key)))
-
-symmetries = [ # lambda s: s, # identity (omitted)
-               boardRotate, # 90 degrees
-               lambda s: boardRotate(boardRotate(s)), # 180 degrees
-               lambda s: boardRotate(boardRotate(boardRotate(s))), # 270 degrees
-               boardFlip, # Flip about middle column
-               lambda s: boardFlip(boardRotate(s)), # 90 degrees then flip
-               lambda s: boardFlip(boardRotate(boardRotate(s))), # 180 degrees then flip
-               lambda s: boardFlip(boardRotate(boardRotate(boardRotate(s)))) ] # 270 degrees then flip
-
-if __name__ == '__main__':
-    assertAiNeverLoses(board)
+def createBookPickle(board):
+    assertAiNeverLoses(board, suggestor.suggest)
     states = set(suggestor.suggestions.keys())
     print('len(suggestor.suggestions)={0}'.format(len(states)))
 
-    uniqueStates = set(states)
-    for s in states:
-        for image in (tran(s) for tran in symmetries):
-            uniqueStates.discard(image)
+    # I decided to forego the consideration of symmetries, since there
+    # are only 546 entires in the book anyway.
+    # uniqueStates = withoutDegeneracy(states)
 
-    print('After removing states that are symmetries of each other, there are {0} states.'.format(len(uniqueStates)))
-    print('Here they are:')
-    for s in uniqueStates:
-        print(s)
+    statesToSerialize = states
+    suggs = { key: boardKey(suggestor.suggestions[key]) for key in statesToSerialize }
+    print('And here they are with suggestions:')
+    pprint(suggs)
+    
+    print('Serializing results.')
+    out = open('ai.txt', 'wb')
+    pickle.dump({
+        'suggestions': suggestor.suggestions,
+        'suggestionKeys': suggs
+        }, out)
+
+def createBookJs(board, outName='minimax-book.js'):
+    assertAiNeverLoses(board, suggestor.suggest)
+    suggs = suggestor.suggestions
+    out = open(outName, 'w')
+    out.write('''
+var MinimaxBook = (function() {
+    var pub = {}
+    var book = {
+''')
+    for key, board in sorted(suggs.items()):
+        out.write('        "{0}": "{1}",\n'.format(key, boardKey(board)))
+    out.write('''    };
+    pub.book = book;
+    return pub;
+})();
+
+''')
+    out.close()
+
+if __name__ == '__main__':
+    board = dict(((i, j), '_') for i in range(dim) for j in range(dim))
+    createBookJs(board)
+
+    
