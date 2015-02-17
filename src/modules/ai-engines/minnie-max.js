@@ -582,27 +582,13 @@
         return "Minnie Max";
     }
 
-    function strForEach(s, func) {
-        var length = s.length;
-        for (var i = 0; i < length; ++i) {
-            func(s[i], i, s);
-        }
-        return s;
-    }
-
     var blankKeyChar = Core.blankKeyChar;
 
     function suggestMove(boardKey) {
         var moveKey = MinimaxBook.book[boardKey];
         assert(moveKey !== undefined);
 
-        var move = {};
-        strForEach(moveKey, function(ch, i) {
-            if (boardKey[i] === blankKeyChar && ch !== blankKeyChar) {
-                move.x = i % Core.dim;
-                move.y = Math.floor(i / Core.dim);
-            }
-        });
+        var move = Core.moveMade(boardKey, moveKey);
 
         assert(move.x !== undefined && move.y !== undefined);
         return move;

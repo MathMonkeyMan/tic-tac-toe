@@ -20,14 +20,15 @@
 var Game = (function() { 
     var me = {};
 
-    var over = false;
-
     function repeat(n, func) {
         for (var i = 0; i < n; ++i) {
             func();
         }
     }
 
+    var whoMoves = Core.ex;
+    var over = false;
+    
     // Make board a Core.dim by Core.dim array of blanks.
     // e.g. if Core.dim === 3, then board[1][1] is the center cell.
     //
@@ -44,8 +45,6 @@ var Game = (function() {
     }
     clearBoard(board);
 
-    var whoMoves = Core.ex;
-    
     function whoseMove() {
         return whoMoves;
     }
@@ -88,36 +87,9 @@ var Game = (function() {
     //
     var checkForWin = (function() {
         var nums = Core.range(Core.dim);
-        
-        // Array comprehensions would be really nice here.
-        var sequences = [];
-
-        // columns and rows
-        sequences = sequences.concat(nums.map(function(x) {
-            return nums.map(function(y) {
-                return {'x': x, 'y': y};
-            });
-        })).concat(nums.map(function(y) {
-            return nums.map(function(x) {
-                return {'x': x, 'y': y};
-            });
-        }));
-
-        // backslash diagonal
-        sequences.push(nums.map(function(i) {
-            return { 'x': i, 'y': i };
-        }));
-
-        // forward slash diagonal
-        sequences.push(nums.map(function(i) {
-            return { 'x': i, 'y': Core.dim - i };
-        }));
-
-        sequences.forEach(function(seq) {
-            assert(seq.length === Core.dim);
-        });
-
         // A bit ugly, I admit.
+        var sequences = Core.winningSequences();    
+
         return function() {
             var winner;
             var winningSequence;

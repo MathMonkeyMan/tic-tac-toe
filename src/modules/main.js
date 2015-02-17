@@ -102,10 +102,9 @@ var main = (function() {
     function makeMove(x, y, who, canCheat) {
         if (!canCheat && Game.get(x, y) !== Core.blank) {
             // Invalid move
-            // TODO: Remove alert
-            alert("Cheater!");
             return {};
         }
+        // Cheating will become significant when Neo is written.
 
         unfadeCell(x, y);
         setCellValue(x, y, who);
