@@ -16,31 +16,21 @@
     with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
-"use strict";
-
-var assert = function(predicate) {
-    // TODO: In production, disable this code.
-    if ( ! predicate) {
-        throw {
-            message: 'Assertion failed: ' + predicate
-        };
-    }
-}
 
 var main = (function() {
     var me = {};
     var cells;
 
     window.onload = function() {
-        cells = [ [ document.getElementById("cell1,1"), 
-                    document.getElementById("cell1,2"),
-                    document.getElementById("cell1,3") ],
-                  [ document.getElementById("cell2,1"),
-                    document.getElementById("cell2,2"),
-                    document.getElementById("cell2,3") ],
-                  [ document.getElementById("cell3,1"),
-                    document.getElementById("cell3,2"),
-                    document.getElementById("cell3,3") ] ];
+        cells = [ [ document.getElementById("cell0,0"), 
+                    document.getElementById("cell0,1"),
+                    document.getElementById("cell0,2") ],
+                  [ document.getElementById("cell1,0"),
+                    document.getElementById("cell1,1"),
+                    document.getElementById("cell1,2") ],
+                  [ document.getElementById("cell2,0"),
+                    document.getElementById("cell2,1"),
+                    document.getElementById("cell2,2") ] ];
     };
 
     function clearCells() {
@@ -53,11 +43,13 @@ var main = (function() {
     }
 
     function setOpacity(div, zeroToOne) {
-        div.style.opacity = zeroToOne; //For real browsers
-        div.style.filter = 'alpha(opacity=' + (zeroToOne * 100) + ')'; //For IE
+        div.style.opacity = zeroToOne; 
+        // IE
+        div.style.filter = 'alpha(opacity=' + (zeroToOne * 100) + ')'; 
     }
 
     function setCellValue(x, y, value) {
+        // alert('Setting cell (' + x + ', ' + y + ') to ' + value);
         cells[x][y].innerHTML = value;
     }
 
@@ -66,6 +58,8 @@ var main = (function() {
         return value;
     }
 
+    // Utilities for the hover "move preview"
+    //
     function hideCell(x, y) {
         setOpacity(cells[x][y], 0.0);
     }
@@ -78,18 +72,17 @@ var main = (function() {
         setOpacity(cells[x][y], 1.0);
     }
 
-    function showPossibleValue(row, col) {
-        var x = row - 1,
-            y = col - 1;
+    function showPossibleValue(x, y) {
+        if (Game.isOver()) {
+            return;
+        }
         if (getCellValue(x, y) === Core.blank) {
             fadeCell(x, y);
             setCellValue(x, y, Game.whoseMove());
         }
     }
 
-    function hidePossibleValue(row, col) {
-        var x = row - 1,
-            y = col - 1;
+    function hidePossibleValue(x, y) {
         if (Game.get(x, y) === Core.blank) {
             setCellValue(x, y, Core.blank);
             hideCell(x, y);
@@ -98,49 +91,145 @@ var main = (function() {
 
     // Clicking on cells
     //
-    var clickHandler = (function() {
-        return function(event, row, col) {
-            var x = row - 1,
-                y = col - 1;
-            // TODO: If it's a human's turn, make the move.
-            //       Otherwise, do nothing.
-            //       Then, if the next player is not human,
-            //       make an AI move.
-            //       Always check if the game is over.
+    function dummyClickHandler(event, x, y) {
+        if (Game.get(x, y) === Core.blank) {
+            unfadeCell(x, y);
+            setCellValue(x, y, Game.whoseMove());
+            Game.move(x, y);
+        }
+    }
 
-            if (Game.get(x, y) === Core.blank) {
-                unfadeCell(x, y);
-                setCellValue(x, y, Game.whoseMove());
-                Game.move(x, y);
+    function makeMove(x, y, who, canCheat) {
+        if (!canCheat && Game.get(x, y) !== Core.blank) {
+            // Invalid move
+            // TODO: Remove alert
+            alert("Cheater!");
+            return {};
+        }
+
+        unfadeCell(x, y);
+        setCellValue(x, y, who);
+        var moveResult = Game.move(x, y, canCheat);
+
+        return moveResult;
+    }
+
+    function isHuman(player) {
+        return player.aiEngine === undefined;
+    }
+
+    function setEndGameMessage(msg) {
+        document.getElementById('gameOverMessage').innerHTML = msg;
+    }
+
+    function reportEnd(winner, winningSequence) {
+        if (winner) {
+            setEndGameMessage(winner + ' wins.');
+        }
+        else {
+            setEndGameMessage('Tie game.');
+        }
+        window.location.href = "#gameOver";
+    }
+
+    /*
+     * example "moveResult": {
+     *     winner: ex|oh|undefined,
+     *     winningSequence: [Point]|undefined,
+     *     gameOver: True|False
+     * }
+     */
+
+    function isGameOverAfterMove(x, y, who, canCheat) {
+        var moveResult = makeMove(x, y, 
+                                  who, 
+                                  canCheat);
+        if (moveResult.gameOver) {
+            reportEnd(moveResult.winner, 
+                      moveResult.winningSequence);
+            return true; // Game over.
+        }
+        else {
+            return false; // Game continues.
+        }
+    }
+
+    function clickHandler(event, x, y) {
+        if (Game.isOver()) {
+            return;
+        }
+
+        var whoNow = Game.whoseMove();
+        var currentPlayer = Players.get(whoNow);
+
+        if (isHuman(currentPlayer)) {
+            if (isGameOverAfterMove(x, y, 
+                                    whoNow,
+                                    currentPlayer.canCheat())) {
+                return; // Game over.
+            }
+
+            // Otherwise, let's see if the next player is AI.
+            whoNow = Game.whoseMove();
+            currentPlayer = Players.get(whoNow);
+            if (isHuman(currentPlayer)) {
+                return; // Let the human go.
+            }
+
+            var move = currentPlayer.aiEngine.suggestMove(
+                    Game.boardKey());
+            assert(move !== undefined);
+
+            if (isGameOverAfterMove(move.x, move.y, 
+                                    whoNow,
+                                    currentPlayer.canCheat())) {
+                return; // Game over.
             }
         }
-    })();
+        else {
+            alert("Not your turn!"); // TODO: Remove
+        }
+    }
 
     var Players = (function() {
         var me = {};
 
+        // A "player" has a name and an aiEngine.
+        // If the player is human, aiEngine === undefined.
+        //
         var xPlayer = {
             name: 'human',
-            aiEngine: undefined
+            aiEngine: undefined,
+            canCheat: function() {
+                return false;
+            }
         };
         var oPlayer = {
             name: 'human',
-            aiEngine: undefined
+            aiEngine: undefined,
+            canCheat: function () {
+                return false;
+            }
         };
 
-        var clone = function(spec) {
+        function clone(spec) {
+            var canICheat = spec.canCheat();
+
             return {
                 name: spec.name,
-                aiEngine: spec.aiEngine
+                aiEngine: spec.aiEngine,
+                canCheat: function() {
+                    return canICheat;
+                }
             };
-        };
+        }
 
-        var reset = function(xSpec, oSpec) {
+        function reset(xSpec, oSpec) {
             xPlayer = clone(xSpec);
-            oPlayer = clone(ySpec);
-        };
+            oPlayer = clone(oSpec);
+        }
         
-        var get = function(who) {
+        function get(who) {
             if (who === Core.ex) {
                 return clone(xPlayer);
             }
@@ -148,7 +237,7 @@ var main = (function() {
                 assert(who === Core.oh);
                 return clone(oPlayer);
             }
-        };
+        }
 
         me.reset = reset;
         me.get = get;
@@ -158,31 +247,68 @@ var main = (function() {
     // New game popup initially.
     window.location.href = "#newGame";
 
+    function lookupEngine(playerName) {
+        if (playerName === "human") {
+            return undefined; // Roll over, Turing
+        }
+        else {
+            return Ai.getEngine(playerName);
+        }
+    }
+
+    function makePlayer(name) {
+        var engine = lookupEngine(name);
+        function canCheat() {
+            if (engine === undefined) {
+                return false; // No human cheating
+            }
+            else {
+                return engine.canCheat();
+            }
+        }
+
+        return {
+            "name": name,
+            "aiEngine": engine,
+            "canCheat": canCheat
+        };
+    }
+
     function newGame() {
-        // alert(document.getElementById('xPlayer').value);
         var xPlayer = document.getElementById('xPlayer').value;
         var oPlayer = document.getElementById('oPlayer').value;
-        // alert('Player X is "' + xPlayer + '" and player O is "' + oPlayer + '"');
-        /*
-        if (xPlayer !== 'human') {
-            alert('X player is nonhuman "' + xPlayer + '"');
-            // TODO load AI
-        }
-        if (oPlayer !== 'human') {
-            alert('O player is nonhuman "' + oPlayer + '"');
-            // TODO load AI
-        }
-        */
+
+        Players.reset(makePlayer(xPlayer), makePlayer(oPlayer));
+        
         Game.reset();
         clearCells();
-        // TODO Board.reset();
+
         window.location.href = '#'; // Hide "new game" popup. 
+
+        var whoNow = Game.whoseMove();
+        var currentPlayer = Players.get(whoNow);
+        while (!isHuman(currentPlayer)) {
+            var move = currentPlayer.aiEngine.suggestMove(
+                    Game.boardKey());
+            // alert(whoNow + ' is making the move (' + move.x + ', ' + move.y + ')');
+            assert(move !== undefined);
+
+            if (isGameOverAfterMove(move.x, move.y, 
+                                    whoNow,
+                                    currentPlayer.canCheat())) {
+                return; // Game over.
+            }
+
+            whoNow = Game.whoseMove();
+            currentPlayer = Players.get(whoNow);
+        }
     }
 
     me.showPossibleValue = showPossibleValue;
     me.hidePossibleValue = hidePossibleValue;
     me.clickHandler = clickHandler;
     me.newGame = newGame;
+
     return me;
 })(); // var main
 

@@ -26,7 +26,9 @@ var Ai = (function() {
     // (name, type) pairs for what an "engine" must have.
     var engineInterface = {
         "getName": "function",
-        "suggestMove": "function"
+        "getDisplayName": "function",
+        "suggestMove": "function",
+        "canCheat": "function"
     };
 
     function satisfiesInterface(object, iface) {
@@ -36,7 +38,10 @@ var Ai = (function() {
     }
 
     function getEngine(name) {
-        return engines[name];
+        var engine = engines[name];
+        assert(engine !== undefined);
+
+        return engine;
     }
 
     function getEngines() {
@@ -48,7 +53,7 @@ var Ai = (function() {
     }
 
     function addEngine(engine) {
-        assert(satisfiesInterface(engineInterface));
+        assert(satisfiesInterface(engine, engineInterface));
 
         var name = engine.getName();
         assert(engines[name] === undefined);
@@ -59,5 +64,6 @@ var Ai = (function() {
     me.getEngine = getEngine;
     me.getEngines = getEngines;
     me.addEngine = addEngine;
+    return me;
 })();
 

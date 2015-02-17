@@ -392,14 +392,14 @@ def createBookJs(board, outName='minimax-book.js'):
     out = open(outName, 'w')
     out.write('''
 var MinimaxBook = (function() {
-    var pub = {}
+    var me = {}
     var book = {
 ''')
     for key, board in sorted(suggs.items()):
         out.write('        "{0}": "{1}",\n'.format(key, boardKey(board)))
     out.write('''    };
-    pub.book = book;
-    return pub;
+    me.book = book;
+    return me;
 })();
 
 ''')
